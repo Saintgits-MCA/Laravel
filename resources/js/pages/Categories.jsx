@@ -209,8 +209,8 @@ export default function Categories() {
                 <div className="col-12 col-sm-6 col-lg-4">
                     <div className="card border-0 shadow-sm h-100">
                         <div className="card-body d-flex align-items-center gap-3">
-                            <div className="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
-                                <Tags size={25} />
+                            <div className="bg-primary text-white rounded-3 p-3">
+                                <i className="bi bi-tag" ></i>
                             </div>
                             <div>
                                 <p className="text-secondary mb-1">Total Categories</p>
@@ -278,7 +278,7 @@ export default function Categories() {
                                     <tr key={category.id}>
                                         <td className="px-3">
                                             <div className="d-flex align-items-center gap-2">
-                                                <div className="bg-primary bg-opacity-10 text-primary rounded-2 p-2">
+                                                <div className="bg-primary text-white rounded-2 p-2">
                                                     <Tags size={17} />
                                                 </div>
                                                 <strong>{category.name}</strong>
