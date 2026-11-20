@@ -195,7 +195,12 @@ export default function Dashboard() {
                                                 allowDecimals={false}
                                                 tick={{ fontSize: 12 }}
                                             />
-                                            <Tooltip />
+                                            <Tooltip
+    formatter={(value) => [`${value} `, 'Products']}
+    labelFormatter={(label) => `Category: ${label}`}
+    cursor={{ fill: 'rgba(99, 91, 219, 0.08)' }}
+    contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
+/>
                                             <Bar
                                                 dataKey="products"
                                                 fill="#635bdb"
