@@ -1,23 +1,55 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom'; // ✅ Added useNavigate
 import {
     LayoutDashboard,
     Package,
     Tags,
+    Users,
     Settings,
     Boxes,
+    LogOut, // ✅ Added LogOut
     ChevronLeft,
     Sparkles,
+    User as UserIcon, // ✅ Added UserIcon for the profile
 } from 'lucide-react';
+import api from '../services/api'; // ✅ Ensure you have your api instance
 
 const links = [
     { name: 'Dashboard',  path: '/',           icon: LayoutDashboard },
     { name: 'Products',   path: '/products',   icon: Package },
     { name: 'Categories', path: '/categories', icon: Tags },
+    { name: 'Users',      path: '/users',      icon: Users },
     { name: 'Settings',   path: '/settings',   icon: Settings },
 ];
 
 export default function Sidebar({ open, onClose }) {
+    const navigate = useNavigate();
+
+    // ✅ Safe parsing to prevent crashes if user isn't logged in
+    let user = { name: 'User', email: 'user@example.com' };
+    try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            user = JSON.parse(storedUser);
+        }
+    } catch (e) {
+        console.error("Failed to parse user data");
+    }
+
+    const handleLogout = async () => {
+        try {
+            await api.post('/logout');
+        } catch (error) {
+            console.error("Logout error:", error);
+        } finally {
+            // Clear data and redirect to login
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            navigate('/login');
+            if (onClose) onClose(); // Close mobile sidebar if open
+        }
+    };
+
     return (
         <>
             {/* Mobile backdrop */}
@@ -73,15 +105,28 @@ export default function Sidebar({ open, onClose }) {
                     ))}
                 </nav>
 
-                {/* Upgrade / info card */}
-                <div className="sidebar-card">
-                    <div className="sidebar-card-icon">
-                        <Sparkles size={18} />
+                {/* User Profile & Logout (Replaced Pro Card) */}
+                <div className="sidebar-card" style={{ marginTop: 'auto', background: '#f4f5fa', border: '1px solid #e2e8f0' }}>
+                    <div className="sidebar-card-icon" style={{ background: '#635bdb' }}>
+                        <UserIcon size={18} color="white" />
                     </div>
-                    <div className="sidebar-card-text">
-                        <strong>StockFlow Pro</strong>
-                        <span>Unlock advanced analytics</span>
+                    
+                    <div className="sidebar-card-text" style={{ overflow: 'hidden' }}>
+                        <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {user.name}
+                        </strong>
+                        <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '11px' }}>
+                            {user.email}
+                        </span>
                     </div>
+
+                    <button 
+                        onClick={handleLogout}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}
+                        title="Logout"
+                    >
+                        <LogOut size={18} />
+                    </button>
                 </div>
 
                 {/* Footer */}
