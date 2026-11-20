@@ -6,11 +6,22 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth; // Import Auth
+
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        // 1. Check if Laravel knows who this is based on the Bearer token
+        $user = $request->user();
+
+        // 2. If the token failed, fallback to the first user in the DB (just for testing)
+        // If this shows "Shibu", it means the token isn't being sent by Axios!
+        if (!$user) {
+            $user = User::first(); 
+        }
         return response()->json([
             'total_products' => Product::count(),
 
@@ -32,6 +43,9 @@ class DashboardController extends Controller
 
             'category_stats' => Category::withCount('products')
                 ->get(['id', 'name']),
+
+            'user_name' => $request->user()->name,
+
         ]);
     }
 }

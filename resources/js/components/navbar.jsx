@@ -62,7 +62,7 @@ export default function Navbar({ onMenuClick }) {
                 `}
             </style>
 
-            <header className="stockflow-navbar bg-white border-bottom shadow-sm position-relative" style={{ zIndex: 1030 }}>
+            <header className="stockflow-navbar bg-white border-bottom shadow-sm sticky-top" style={{ zIndex: 1030 }}>
                 <div className="container-fluid px-3 px-md-4">
                     <div className="d-flex align-items-center justify-content-between gap-3 py-2">
 

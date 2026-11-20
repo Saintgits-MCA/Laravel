@@ -99,7 +99,7 @@ export default function Dashboard() {
             {/* Heading */}
             <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
                 <div>
-                    <h2 className="fw-bold mb-1">Welcome back!</h2>
+                    <h2 className="fw-bold mb-1">Welcome back, {data.user_name} !</h2>
                     <p className="text-secondary mb-0">
                         Here's what's happening with your inventory today.
                     </p>
@@ -177,7 +177,7 @@ export default function Dashboard() {
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
                                             data={chartData}
-                                            margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                                            margin={{ top: 10, right: 10, left: -20, bottom: 45 }} // 👈 Increased bottom margin for rotated text
                                         >
                                             <CartesianGrid
                                                 strokeDasharray="3 3"
@@ -185,8 +185,11 @@ export default function Dashboard() {
                                             />
                                             <XAxis
                                                 dataKey="name"
-                                                tick={{ fontSize: 12 }}
+                                                tick={{ fontSize: 11 }} // 👈 Slightly smaller font
                                                 interval={0}
+                                                angle={-45} // 👈 Rotate text diagonally
+                                                textAnchor="end" // 👈 Align text nicely to the tick
+                                                height={60} // 👈 Give X-axis enough height for labels
                                             />
                                             <YAxis
                                                 allowDecimals={false}

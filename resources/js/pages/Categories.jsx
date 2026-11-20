@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Plus, Tags, CheckCircle2, AlertCircle } from "lucide-react";
 import api from "../services/api";
 
@@ -7,7 +7,7 @@ const emptyForm = {
     description: "",
 };
 
-const ITEMS_PER_PAGE = 10;
+const PER_PAGE = 5;
 
 export default function Categories() {
     const [categories, setCategories] = useState([]);
@@ -19,26 +19,50 @@ export default function Categories() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // Search (debounced) + server-side pagination
+    const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    const [total, setTotal] = useState(0); // matches for current search
+    const [totalAll, setTotalAll] = useState(0); // all categories, ignoring search
 
-    // State for the separate Alert Modal
     const [alertModal, setAlertModal] = useState({
         show: false,
-        type: "success", // 'success' or 'error'
+        type: "success",
         message: "",
     });
 
-    // Load categories from Laravel API
-    const loadCategories = async () => {
+    const requestIdRef = useRef(0);
+
+    // Load ONE page of categories from the server
+    const loadCategories = async (pageToLoad = page) => {
+        const myId = ++requestIdRef.current;
+        setLoading(true);
+
         try {
-            setLoading(true);
-            const response = await api.get("/categories");
-            const rows = Array.isArray(response.data)
-                ? response.data
-                : response.data?.data || [];
+            const response = await api.get("/categories", {
+                params: { page: pageToLoad, per_page: PER_PAGE, search },
+            });
+
+            if (myId !== requestIdRef.current) return;
+
+            const payload = response.data;
+            const rows = Array.isArray(payload) ? payload : payload?.data || [];
+            const last = payload?.last_page ?? 1;
+
+            // Requested page no longer exists (e.g. last item deleted) -> go back
+            if (rows.length === 0 && pageToLoad > 1 && pageToLoad > last) {
+                setPage(Math.max(1, last));
+                return;
+            }
+
             setCategories(rows);
+            setLastPage(last);
+            setTotal(payload?.total ?? rows.length);
+            setTotalAll(payload?.total_all ?? payload?.total ?? rows.length);
         } catch (err) {
+            if (myId !== requestIdRef.current) return;
             setAlertModal({
                 show: true,
                 type: "error",
@@ -46,13 +70,26 @@ export default function Categories() {
                     err.response?.data?.message || "Unable to load categories.",
             });
         } finally {
-            setLoading(false);
+            if (myId === requestIdRef.current) setLoading(false);
         }
     };
 
+    // Debounce the search box
     useEffect(() => {
-        loadCategories();
-    }, []);
+        const timer = setTimeout(() => {
+            setSearch(searchInput.trim());
+            setPage(1);
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
+    // Reload whenever page or search changes
+    useEffect(() => {
+        loadCategories(page);
+        return () => {
+            requestIdRef.current++;
+        };
+    }, [page, search]);
 
     // Close form modal on Escape key
     useEffect(() => {
@@ -64,14 +101,12 @@ export default function Categories() {
         return () => window.removeEventListener("keydown", closeOnEscape);
     }, [showForm, saving]);
 
-    // Create category
     const openCreate = () => {
         setForm(emptyForm);
         setEditingId(null);
         setShowForm(true);
     };
 
-    // Edit category
     const editCategory = (category) => {
         setForm({
             name: category.name || "",
@@ -81,37 +116,38 @@ export default function Categories() {
         setShowForm(true);
     };
 
-    // Save category
     const submitForm = async (e) => {
         e.preventDefault();
         setSaving(true);
 
         try {
-            if (editingId) {
+            const wasEditing = Boolean(editingId);
+
+            if (wasEditing) {
                 await api.put(`/categories/${editingId}`, form);
             } else {
                 await api.post("/categories", form);
             }
 
-            // Close form modal
             setShowForm(false);
             setForm(emptyForm);
             setEditingId(null);
-            setPage(1);
 
-            // Reload data
-            await loadCategories();
+            // Edit: stay on the same page. Create: jump to page 1.
+            if (!wasEditing && page !== 1) {
+                setPage(1); // effect reloads
+            } else {
+                await loadCategories(page);
+            }
 
-            // Show the separate success modal
             setAlertModal({
                 show: true,
                 type: "success",
-                message: editingId
+                message: wasEditing
                     ? "Category updated successfully."
                     : "Category created successfully.",
             });
         } catch (err) {
-            // If there is an error, we don't close the form, but we show the error modal on top
             const errors = err.response?.data?.errors;
             setAlertModal({
                 show: true,
@@ -125,7 +161,6 @@ export default function Categories() {
         }
     };
 
-    // Delete category
     const deleteCategory = async (id) => {
         if (
             !window.confirm(
@@ -137,7 +172,12 @@ export default function Categories() {
 
         try {
             await api.delete(`/categories/${id}`);
-            await loadCategories();
+
+            if (categories.length === 1 && page > 1) {
+                setPage((current) => current - 1); // effect reloads
+            } else {
+                await loadCategories(page);
+            }
 
             setAlertModal({
                 show: true,
@@ -154,36 +194,31 @@ export default function Categories() {
         }
     };
 
-    // Search categories
-    const filteredCategories = categories.filter((category) =>
-        (category.name || "")
-            .toLowerCase()
-            .includes(search.toLowerCase().trim()),
-    );
+    const goToPage = (nextPage) => {
+        const newPage = Math.max(1, Math.min(nextPage, lastPage));
+        if (newPage !== page) setPage(newPage);
+    };
 
-    // Pagination calculations
-    const totalPages = Math.ceil(filteredCategories.length / ITEMS_PER_PAGE);
-    const paginatedCategories = filteredCategories.slice(
-        (page - 1) * ITEMS_PER_PAGE,
-        page * ITEMS_PER_PAGE,
-    );
-
-    // Keep current page valid after searching or deleting
-    useEffect(() => {
-        if (totalPages === 0) {
-            if (page !== 1) setPage(1);
-        } else if (page > totalPages) {
-            setPage(totalPages);
-        }
-    }, [totalPages, page]);
-
+    // Compact page window: 1 ... 4 5 6 ... 20
     const getPageNumbers = () => {
         const pages = [];
-        for (let i = 1; i <= totalPages; i++) {
-            pages.push(i);
+        const start = Math.max(1, page - 2);
+        const end = Math.min(lastPage, page + 2);
+
+        if (start > 1) {
+            pages.push(1);
+            if (start > 2) pages.push("start-ellipsis");
+        }
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (end < lastPage) {
+            if (end < lastPage - 1) pages.push("end-ellipsis");
+            pages.push(lastPage);
         }
         return pages;
     };
+
+    const showingFrom = total > 0 ? (page - 1) * PER_PAGE + 1 : 0;
+    const showingTo = Math.min(page * PER_PAGE, total);
 
     return (
         <div className="container-fluid py-3 py-md-4">
@@ -221,9 +256,7 @@ export default function Categories() {
                                 <p className="text-secondary mb-1">
                                     Total Categories
                                 </p>
-                                <h3 className="fw-bold mb-0">
-                                    {categories.length}
-                                </h3>
+                                <h3 className="fw-bold mb-0">{totalAll}</h3>
                             </div>
                         </div>
                     </div>
@@ -237,7 +270,7 @@ export default function Categories() {
                         <div>
                             <h5 className="fw-bold mb-1">All Categories</h5>
                             <small className="text-secondary">
-                                {filteredCategories.length} categories found
+                                {total} categories found
                             </small>
                         </div>
 
@@ -246,11 +279,8 @@ export default function Categories() {
                             className="form-control"
                             style={{ maxWidth: "320px" }}
                             placeholder="Search categories..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1);
-                            }}
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                         />
                     </div>
                 </div>
@@ -279,7 +309,7 @@ export default function Categories() {
                                         </p>
                                     </td>
                                 </tr>
-                            ) : paginatedCategories.length === 0 ? (
+                            ) : categories.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan="4"
@@ -289,7 +319,7 @@ export default function Categories() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedCategories.map((category) => (
+                                categories.map((category) => (
                                     <tr key={category.id}>
                                         <td className="px-3">
                                             <div className="d-flex align-items-center gap-2">
@@ -341,16 +371,12 @@ export default function Categories() {
                 </div>
 
                 {/* Pagination */}
-                {!loading && totalPages > 0 && (
+                {!loading && lastPage > 0 && total > 0 && (
                     <div className="card-footer bg-white border-0 p-3">
                         <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
                             <small className="text-secondary">
-                                Showing {(page - 1) * ITEMS_PER_PAGE + 1} to{" "}
-                                {Math.min(
-                                    page * ITEMS_PER_PAGE,
-                                    filteredCategories.length,
-                                )}{" "}
-                                of {filteredCategories.length} categories
+                                Showing {showingFrom} to {showingTo} of {total}{" "}
+                                categories
                             </small>
 
                             <nav aria-label="Category pagination">
@@ -361,44 +387,52 @@ export default function Categories() {
                                         <button
                                             type="button"
                                             className="page-link"
-                                            onClick={() =>
-                                                setPage((c) =>
-                                                    Math.max(1, c - 1),
-                                                )
-                                            }
-                                            disabled={page === 1}
+                                            onClick={() => goToPage(page - 1)}
+                                            disabled={page === 1 || loading}
                                         >
                                             Previous
                                         </button>
                                     </li>
 
-                                    {getPageNumbers().map((number) => (
-                                        <li
-                                            key={number}
-                                            className={`page-item ${page === number ? "active" : ""}`}
-                                        >
-                                            <button
-                                                type="button"
-                                                className="page-link"
-                                                onClick={() => setPage(number)}
+                                    {getPageNumbers().map((number) =>
+                                        typeof number === "string" ? (
+                                            <li
+                                                key={number}
+                                                className="page-item disabled"
                                             >
-                                                {number}
-                                            </button>
-                                        </li>
-                                    ))}
+                                                <span className="page-link">
+                                                    …
+                                                </span>
+                                            </li>
+                                        ) : (
+                                            <li
+                                                key={number}
+                                                className={`page-item ${page === number ? "active" : ""}`}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="page-link"
+                                                    onClick={() =>
+                                                        goToPage(number)
+                                                    }
+                                                    disabled={loading}
+                                                >
+                                                    {number}
+                                                </button>
+                                            </li>
+                                        ),
+                                    )}
 
                                     <li
-                                        className={`page-item ${page === totalPages ? "disabled" : ""}`}
+                                        className={`page-item ${page === lastPage ? "disabled" : ""}`}
                                     >
                                         <button
                                             type="button"
                                             className="page-link"
-                                            onClick={() =>
-                                                setPage((c) =>
-                                                    Math.min(totalPages, c + 1),
-                                                )
+                                            onClick={() => goToPage(page + 1)}
+                                            disabled={
+                                                page === lastPage || loading
                                             }
-                                            disabled={page === totalPages}
                                         >
                                             Next
                                         </button>
@@ -410,9 +444,7 @@ export default function Categories() {
                 )}
             </div>
 
-            {/* ========================================================
-                ADD / EDIT CATEGORY FORM MODAL
-            ======================================================== */}
+            {/* ADD / EDIT CATEGORY FORM MODAL */}
             {showForm && (
                 <div
                     className="modal d-block"
@@ -522,9 +554,7 @@ export default function Categories() {
                 </div>
             )}
 
-            {/* ========================================================
-                SEPARATE SUCCESS/ERROR ALERT MODAL
-            ======================================================== */}
+            {/* SEPARATE SUCCESS/ERROR ALERT MODAL */}
             {alertModal.show && (
                 <div
                     className="modal d-block"
@@ -541,7 +571,6 @@ export default function Categories() {
                 >
                     <div className="modal-dialog modal-dialog-centered modal-sm">
                         <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden position-relative">
-                            {/* Top Right Close Button */}
                             <button
                                 type="button"
                                 className="btn-close position-absolute top-0 end-0 m-3"
@@ -555,7 +584,6 @@ export default function Categories() {
                                 aria-label="Close"
                             />
 
-                            {/* Colored Top Border Strip */}
                             <div
                                 style={{
                                     height: "6px",

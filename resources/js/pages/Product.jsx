@@ -5,7 +5,9 @@ import {
     Package,
     ImagePlus,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    ZoomIn,
+    X
 } from 'lucide-react';
 
 import api from '../services/api';
@@ -25,9 +27,11 @@ export default function Products() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [form, setForm] = useState(emptyForm);
-    
-    // We need to store the existing image URL to show in the edit modal
+
+    // Existing image URL to show in the edit modal
     const [currentImage, setCurrentImage] = useState(null);
+    // Temporary preview URL for a newly selected file
+    const [newImagePreview, setNewImagePreview] = useState(null);
 
     const [editingId, setEditingId] = useState(null);
     const [showForm, setShowForm] = useState(false);
@@ -49,7 +53,21 @@ export default function Products() {
         message: '',
     });
 
+    // Image preview modal
+    const [preview, setPreview] = useState({ show: false, product: null });
+
     const requestIdRef = useRef(0);
+
+    const getImageUrl = (product) =>
+        product.image_url || (product.image ? `/storage/${product.image}` : null);
+
+    const getCategoryName = (product) =>
+        product.category?.name ||
+        categories.find(c => String(c.id) === String(product.category_id))?.name ||
+        'Uncategorized';
+
+    const openPreview = (product) => setPreview({ show: true, product });
+    const closePreview = () => setPreview({ show: false, product: null });
 
     const loadCategories = async () => {
         try {
@@ -120,6 +138,26 @@ export default function Products() {
         return () => window.removeEventListener('keydown', onKey);
     }, [showForm, saving]);
 
+    useEffect(() => {
+        if (!preview.show) return;
+        const onKey = (event) => {
+            if (event.key === 'Escape') closePreview();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [preview.show]);
+
+    // Create / clean up the temporary preview URL for a newly chosen image
+    useEffect(() => {
+        if (!form.image) {
+            setNewImagePreview(null);
+            return;
+        }
+        const url = URL.createObjectURL(form.image);
+        setNewImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [form.image]);
+
     const changeField = (event) => {
         const { name, value, files } = event.target;
         setForm(previous => ({
@@ -130,7 +168,7 @@ export default function Products() {
 
     const openCreate = () => {
         setForm(emptyForm);
-        setCurrentImage(null); // Reset image
+        setCurrentImage(null);
         setEditingId(null);
         setShowForm(true);
     };
@@ -144,10 +182,9 @@ export default function Products() {
             category_id: product.category_id || '',
             image: null,
         });
-        
-        // Save the existing image URL
-        setCurrentImage(product.image_url || (product.image ? `/storage/${product.image}` : null));
-        
+
+        setCurrentImage(getImageUrl(product));
+
         setEditingId(product.id);
         setShowForm(true);
     };
@@ -221,6 +258,8 @@ export default function Products() {
 
     const getPageNumbers = () => Array.from({ length: lastPage }, (_, index) => index + 1);
 
+    const formImage = newImagePreview || currentImage;
+
     return (
         <div className="container-fluid py-3 py-md-4">
             {/* Page heading */}
@@ -279,7 +318,29 @@ export default function Products() {
                                         <td className="px-3">
                                             <div className="d-flex align-items-center gap-3">
                                                 {product.image ? (
-                                                    <img src={product.image_url || `/storage/${product.image}`} alt={product.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '10px' }} />
+                                                    <button
+                                                        type="button"
+                                                        className="btn p-0 border-0 position-relative flex-shrink-0"
+                                                        style={{ width: '48px', height: '48px', cursor: 'zoom-in' }}
+                                                        title="Click to preview"
+                                                        aria-label={`Preview image of ${product.name}`}
+                                                        onClick={() => openPreview(product)}
+                                                    >
+                                                        <img
+                                                            src={getImageUrl(product)}
+                                                            alt={product.name}
+                                                            className="shadow-sm"
+                                                            style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '10px', transition: 'transform .2s' }}
+                                                            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
+                                                            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                                                        />
+                                                        <span
+                                                            className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                                            style={{ width: '18px', height: '18px', transform: 'translate(25%, 25%)' }}
+                                                        >
+                                                            <ZoomIn size={11} />
+                                                        </span>
+                                                    </button>
                                                 ) : (
                                                     <div className="bg-light rounded-3 p-3"><Package size={20} className="text-secondary" /></div>
                                                 )}
@@ -289,7 +350,7 @@ export default function Products() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>{product.category?.name || categories.find(c => String(c.id) === String(product.category_id))?.name || 'Uncategorized'}</td>
+                                        <td>{getCategoryName(product)}</td>
                                         <td className="fw-semibold">₹{Number(product.price || 0).toFixed(2)}</td>
                                         <td>
                                             <span className={`badge ${Number(product.quantity) === 0 ? 'bg-danger' : Number(product.quantity) <= 5 ? 'bg-warning text-dark' : 'bg-success'}`}>
@@ -328,96 +389,156 @@ export default function Products() {
                 )}
             </div>
 
-            {/* Modal */}
+            {/* Add / Edit Modal (compact two-column layout) */}
             {showForm && (
-                <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }} onMouseDown={event => { if (event.target === event.currentTarget && !saving) setShowForm(false); }}>
-                    <div className="modal-dialog modal-dialog-centered modal-lg">
+                <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onMouseDown={event => { if (event.target === event.currentTarget && !saving) setShowForm(false); }}>
+                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
                         <div className="modal-content border-0 shadow rounded-4">
-                            <div className="modal-header p-3 p-md-4">
+                            <div className="modal-header px-3 py-2 px-md-4 py-md-3">
                                 <div>
-                                    <h5 className="modal-title fw-bold">{editingId ? 'Edit Product' : 'Add New Product'}</h5>
+                                    <h5 className="modal-title fw-bold mb-0">{editingId ? 'Edit Product' : 'Add New Product'}</h5>
                                     <small className="text-secondary">Enter your product information below.</small>
                                 </div>
                                 <button type="button" className="btn-close" onClick={() => setShowForm(false)} disabled={saving} />
                             </div>
 
-                            <div className="modal-body p-3 p-md-4">
-                                <form onSubmit={submitForm}>
+                            <div className="modal-body px-3 py-3 px-md-4">
+                                <form id="product-form" onSubmit={submitForm}>
                                     <div className="row g-3">
-                                        <div className="col-12">
-                                            <label className="form-label fw-semibold">Product Name *</label>
-                                            <input type="text" name="name" className="form-control" value={form.name} onChange={changeField} required maxLength="255" />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="form-label fw-semibold">Description</label>
-                                            <textarea name="description" className="form-control" rows="3" value={form.description} onChange={changeField} />
-                                        </div>
-                                        <div className="col-12 col-md-6">
-                                            <label className="form-label fw-semibold">Price (₹) *</label>
-                                            <input type="number" name="price" onWheel={(e) => e.target.blur()} className="form-control" value={form.price} onChange={changeField} min="0" step="0.01" required />
-                                        </div>
-                                        <div className="col-12 col-md-6">
-                                            <label className="form-label fw-semibold">Quantity *</label>
-                                            <input type="number" name="quantity" onWheel={(e) => e.target.blur()} className="form-control" value={form.quantity} onChange={changeField} min="0" step="1" required />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="form-label fw-semibold">Category</label>
-                                            <select name="category_id" className="form-select" value={form.category_id} onChange={changeField}>
-                                                <option value="">No category</option>
-                                                {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-                                            </select>
-                                        </div>
-                                        
-                                        {/* ========================================================
-                                            UPDATED IMAGE UPLOAD SECTION
-                                        ======================================================== */}
-                                        <div className="col-12">
-                                            <label className="form-label fw-semibold">Product Image</label>
-                                            <label htmlFor="product-image" className="border rounded-3 p-3 d-flex align-items-center gap-3 w-100" style={{ cursor: 'pointer' }}>
-                                                
-                                                {/* Image Preview Logic */}
-                                                {form.image ? (
-                                                    // If user selected a NEW image, show a temporary preview using FileReader URL
-                                                    <img 
-                                                        src={URL.createObjectURL(form.image)} 
-                                                        alt="Preview" 
-                                                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }} 
-                                                    />
-                                                ) : currentImage ? (
-                                                    // If editing and no new image selected, show existing image from DB
-                                                    <img 
-                                                        src={currentImage} 
-                                                        alt="Current" 
-                                                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }} 
-                                                    />
-                                                ) : (
-                                                    // Default state (no image)
-                                                    <div className="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
-                                                        <ImagePlus size={23} />
-                                                    </div>
-                                                )}
-
-                                                <div className="overflow-hidden">
-                                                    <div className="fw-semibold">
-                                                        {form.image ? form.image.name : (editingId && currentImage ? 'Change image' : 'Choose an image')}
-                                                    </div>
-                                                    <small className="text-secondary">PNG, JPG or WEBP</small>
+                                        {/* Left column: text fields */}
+                                        <div className="col-12 col-md-7">
+                                            <div className="row g-2">
+                                                <div className="col-12">
+                                                    <label className="form-label fw-semibold small mb-1">Product Name *</label>
+                                                    <input type="text" name="name" className="form-control" value={form.name} onChange={changeField} required maxLength="255" />
                                                 </div>
-                                            </label>
-                                            
-                                            <input id="product-image" type="file" name="image" className="form-control d-none" accept="image/png,image/jpeg,image/webp" onChange={changeField} />
-                                            
-                                            {editingId && (
-                                                <small className="text-secondary d-block mt-2">Leave empty to keep the current image.</small>
-                                            )}
+                                                <div className="col-12">
+                                                    <label className="form-label fw-semibold small mb-1">Description</label>
+                                                    <textarea name="description" className="form-control" rows="3" value={form.description} onChange={changeField} />
+                                                </div>
+                                                <div className="col-6">
+                                                    <label className="form-label fw-semibold small mb-1">Price (₹) *</label>
+                                                    <input type="number" name="price" onWheel={(e) => e.target.blur()} className="form-control" value={form.price} onChange={changeField} min="0" step="0.01" required />
+                                                </div>
+                                                <div className="col-6">
+                                                    <label className="form-label fw-semibold small mb-1">Quantity *</label>
+                                                    <input type="number" name="quantity" onWheel={(e) => e.target.blur()} className="form-control" value={form.quantity} onChange={changeField} min="0" step="1" required />
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="d-flex flex-column-reverse flex-sm-row justify-content-end gap-2 mt-4">
-                                        <button type="button" className="btn btn-light" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
-                                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editingId ? 'Update Product' : 'Add Product'}</button>
+                                        {/* Right column: category + image */}
+                                        <div className="col-12 col-md-5">
+                                            <div className="row g-2">
+                                                <div className="col-12">
+                                                    <label className="form-label fw-semibold small mb-1">Category</label>
+                                                    <select name="category_id" className="form-select" value={form.category_id} onChange={changeField}>
+                                                        <option value="">No category</option>
+                                                        {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="col-12">
+                                                    <label className="form-label fw-semibold small mb-1">Product Image</label>
+                                                    <label
+                                                        htmlFor="product-image"
+                                                        className="border border-2 rounded-3 p-2 d-flex align-items-center gap-3 w-100 bg-light"
+                                                        style={{ cursor: 'pointer', borderStyle: 'dashed' }}
+                                                    >
+                                                        {formImage ? (
+                                                            <img
+                                                                src={formImage}
+                                                                alt="Product"
+                                                                className="flex-shrink-0"
+                                                                style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px' }}
+                                                            />
+                                                        ) : (
+                                                            <div className="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: '64px', height: '64px' }}>
+                                                                <ImagePlus size={24} />
+                                                            </div>
+                                                        )}
+                                                        <div className="overflow-hidden">
+                                                            <div className="fw-semibold small text-truncate">
+                                                                {form.image ? form.image.name : (editingId && currentImage ? 'Change image' : 'Choose an image')}
+                                                            </div>
+                                                            <small className="text-secondary">PNG, JPG or WEBP</small>
+                                                        </div>
+                                                    </label>
+
+                                                    <input id="product-image" type="file" name="image" className="form-control d-none" accept="image/png,image/jpeg,image/webp" onChange={changeField} />
+
+                                                    {editingId && (
+                                                        <small className="text-secondary d-block mt-1">Leave empty to keep the current image.</small>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </form>
+                            </div>
+
+                            <div className="modal-footer px-3 py-2 px-md-4 py-md-3 gap-2">
+                                <button type="button" className="btn btn-light" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
+                                <button type="submit" form="product-form" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editingId ? 'Update Product' : 'Add Product'}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Image Preview Modal */}
+            {preview.show && preview.product && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex="-1"
+                    style={{ backgroundColor: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(4px)', overflowY: 'auto' }}
+                    onMouseDown={event => { if (event.target === event.currentTarget) closePreview(); }}
+                >
+                    <div className="modal-dialog modal-dialog-centered modal-lg">
+                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+                            <div className="position-relative bg-dark d-flex align-items-center justify-content-center" style={{ minHeight: '300px' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 d-flex align-items-center justify-content-center shadow"
+                                    style={{ width: '34px', height: '34px', zIndex: 5 }}
+                                    aria-label="Close"
+                                    onClick={closePreview}
+                                >
+                                    <X size={18} />
+                                </button>
+
+                                <img
+                                    src={getImageUrl(preview.product)}
+                                    alt={preview.product.name}
+                                    style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain' }}
+                                />
+                            </div>
+
+                            <div className="p-3 p-md-4">
+                                <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                                    <div>
+                                        <h5 className="fw-bold mb-1">{preview.product.name}</h5>
+                                        <p className="text-secondary small mb-0">
+                                            {preview.product.description || 'No description'}
+                                        </p>
+                                    </div>
+                                    <h4 className="fw-bold text-primary mb-0 text-sm-end">
+                                        ₹{Number(preview.product.price || 0).toFixed(2)}
+                                    </h4>
+                                </div>
+
+                                <div className="d-flex flex-wrap gap-2 mt-3">
+                                    <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2">
+                                        {getCategoryName(preview.product)}
+                                    </span>
+                                    <span className={`badge rounded-pill px-3 py-2 ${
+                                        Number(preview.product.quantity) === 0 ? 'bg-danger'
+                                        : Number(preview.product.quantity) <= 5 ? 'bg-warning text-dark'
+                                        : 'bg-success'
+                                    }`}>
+                                        {preview.product.quantity} units in stock
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -12,7 +12,7 @@ class CategoryController extends Controller
     public function index()
     {
         return response()->json(
-            Category::withCount('products')->latest()->paginate(5)
+            Category::withCount('Products')->orderBy('name')->paginate(5)
         );
     }
 

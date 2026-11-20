@@ -243,7 +243,7 @@ export default function Users() {
                                     {/* Password Field with Eye Toggle */}
                                     <div className="mb-4">
                                         <label className="form-label fw-semibold">
-                                            Password {editingId ? '(Leave empty to keep current)' : '*'}
+                                            Password {editingId ? '' : '*'}
                                         </label>
                                         <div className="position-relative">
                                             <input

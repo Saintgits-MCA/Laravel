@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AuthController;
 
 
-Route::get('/dashboard', [DashboardController::class, 'index']);
 
 Route::apiResource('categories', CategoryController::class);
 
@@ -21,6 +20,9 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Protect all these routes so only logged-in users can access them
 Route::middleware('auth:sanctum')->group(function () {
+
+Route::get('/dashboard', [DashboardController::class, 'index']);
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 });
