@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Tags, X } from 'lucide-react';
+import { Plus, Tags, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 
 const emptyForm = {
@@ -22,8 +22,12 @@ export default function Categories() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
+    // State for the separate Alert Modal
+    const [alertModal, setAlertModal] = useState({
+        show: false,
+        type: 'success', // 'success' or 'error'
+        message: '',
+    });
 
     // Load categories from Laravel API
     const loadCategories = async () => {
@@ -35,9 +39,11 @@ export default function Categories() {
                 : response.data?.data || [];
             setCategories(rows);
         } catch (err) {
-            setError(
-                err.response?.data?.message || 'Unable to load categories.'
-            );
+            setAlertModal({
+                show: true,
+                type: 'error',
+                message: err.response?.data?.message || 'Unable to load categories.',
+            });
         } finally {
             setLoading(false);
         }
@@ -47,7 +53,7 @@ export default function Categories() {
         loadCategories();
     }, []);
 
-    // Close modal on Escape key
+    // Close form modal on Escape key
     useEffect(() => {
         if (!showForm) return;
         const closeOnEscape = (e) => {
@@ -61,8 +67,6 @@ export default function Categories() {
     const openCreate = () => {
         setForm(emptyForm);
         setEditingId(null);
-        setError('');
-        setMessage('');
         setShowForm(true);
     };
 
@@ -73,8 +77,6 @@ export default function Categories() {
             description: category.description || '',
         });
         setEditingId(category.id);
-        setError('');
-        setMessage('');
         setShowForm(true);
     };
 
@@ -82,30 +84,40 @@ export default function Categories() {
     const submitForm = async (e) => {
         e.preventDefault();
         setSaving(true);
-        setError('');
-        setMessage('');
 
         try {
             if (editingId) {
                 await api.put(`/categories/${editingId}`, form);
-                setMessage('Category updated successfully.');
             } else {
                 await api.post('/categories', form);
-                setMessage('Category created successfully.');
             }
 
+            // Close form modal
+            setShowForm(false);
             setForm(emptyForm);
             setEditingId(null);
-            setShowForm(false);
             setPage(1);
+            
+            // Reload data
             await loadCategories();
+
+            // Show the separate success modal
+            setAlertModal({
+                show: true,
+                type: 'success',
+                message: editingId ? 'Category updated successfully.' : 'Category created successfully.',
+            });
+
         } catch (err) {
+            // If there is an error, we don't close the form, but we show the error modal on top
             const errors = err.response?.data?.errors;
-            setError(
-                errors
+            setAlertModal({
+                show: true,
+                type: 'error',
+                message: errors
                     ? Object.values(errors).flat().join(' ')
-                    : err.response?.data?.message || 'Unable to save category.'
-            );
+                    : err.response?.data?.message || 'Unable to save category.',
+            });
         } finally {
             setSaving(false);
         }
@@ -118,15 +130,20 @@ export default function Categories() {
         }
 
         try {
-            setError('');
-            setMessage('');
             await api.delete(`/categories/${id}`);
-            setMessage('Category deleted successfully.');
             await loadCategories();
+            
+            setAlertModal({
+                show: true,
+                type: 'success',
+                message: 'Category deleted successfully.',
+            });
         } catch (err) {
-            setError(
-                err.response?.data?.message || 'Unable to delete category.'
-            );
+            setAlertModal({
+                show: true,
+                type: 'error',
+                message: err.response?.data?.message || 'Unable to delete category.',
+            });
         }
     };
 
@@ -181,36 +198,13 @@ export default function Categories() {
                 </button>
             </div>
 
-            {/* Success & Error messages - Rendered outside modal so they persist */}
-            {message && (
-                <div className="alert alert-success alert-dismissible fade show">
-                    {message}
-                    <button
-                        type="button"
-                        className="btn-close"
-                        onClick={() => setMessage('')}
-                    />
-                </div>
-            )}
-
-            {error && !showForm && (
-                <div className="alert alert-danger alert-dismissible fade show">
-                    {error}
-                    <button
-                        type="button"
-                        className="btn-close"
-                        onClick={() => setError('')}
-                    />
-                </div>
-            )}
-
             {/* Summary card */}
             <div className="row g-3 mb-4">
                 <div className="col-12 col-sm-6 col-lg-4">
                     <div className="card border-0 shadow-sm h-100">
                         <div className="card-body d-flex align-items-center gap-3">
-                            <div className="bg-primary text-white rounded-3 p-3">
-                                <i className="bi bi-tag" ></i>
+                            <div className="bg-info bg-opacity-10 text-primary text-opacity-50 rounded-3 p-3">
+                                <Tags size={17} />
                             </div>
                             <div>
                                 <p className="text-secondary mb-1">Total Categories</p>
@@ -278,7 +272,7 @@ export default function Categories() {
                                     <tr key={category.id}>
                                         <td className="px-3">
                                             <div className="d-flex align-items-center gap-2">
-                                                <div className="bg-primary text-white rounded-2 p-2">
+                                                <div className="bg-info text-primary bg-opacity-10 text-opacity-50 rounded-2 p-2">
                                                     <Tags size={17} />
                                                 </div>
                                                 <strong>{category.name}</strong>
@@ -288,7 +282,7 @@ export default function Categories() {
                                             {category.description || '—'}
                                         </td>
                                         <td>
-                                            <span className="badge bg-primary  text-white">
+                                            <span className="badge bg-primary text-white">
                                                 {category.products_count ?? 0}
                                             </span>
                                         </td>
@@ -300,7 +294,7 @@ export default function Categories() {
                                                     onClick={() => editCategory(category)}
                                                     title="Edit"
                                                 >
-                                                    <i class="bi bi-pencil-fill" ></i>
+                                                    <i className="bi bi-pencil-fill"></i>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -308,7 +302,7 @@ export default function Categories() {
                                                     onClick={() => deleteCategory(category.id)}
                                                     title="Delete"
                                                 >
-                                                    <i class="bi bi-trash-fill" ></i>
+                                                    <i className="bi bi-trash-fill"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -374,7 +368,9 @@ export default function Categories() {
                 )}
             </div>
 
-            {/* Add / Edit Category Modal */}
+            {/* ========================================================
+                ADD / EDIT CATEGORY FORM MODAL
+            ======================================================== */}
             {showForm && (
                 <div
                     className="modal d-block"
@@ -408,9 +404,6 @@ export default function Categories() {
                             </div>
 
                             <div className="modal-body p-3 p-md-4">
-                                {/* Only show error inside the modal if it happened during saving */}
-                                {error && <div className="alert alert-danger">{error}</div>}
-
                                 <form onSubmit={submitForm}>
                                     <div className="row g-3">
                                         <div className="col-12">
@@ -474,6 +467,70 @@ export default function Categories() {
                     </div>
                 </div>
             )}
+
+            {/* ========================================================
+                SEPARATE SUCCESS/ERROR ALERT MODAL
+            ======================================================== */}
+            {alertModal.show && (
+                           <div
+                               className="modal d-block"
+                               tabIndex="-1"
+                               style={{
+                                   backgroundColor: 'rgba(0,0,0,0.5)',
+                                   zIndex: 1060, 
+                               }}
+                               onMouseDown={(event) => {
+                                   if (event.target === event.currentTarget) {
+                                       setAlertModal({ ...alertModal, show: false });
+                                   }
+                               }}
+                           >
+                               <div className="modal-dialog modal-dialog-centered modal-sm">
+                                   <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden position-relative">
+                                       
+                                       {/* Top Right Close Button */}
+                                       <button
+                                           type="button"
+                                           className="btn-close position-absolute top-0 end-0 m-3"
+                                           style={{ zIndex: 10 }}
+                                           onClick={() => setAlertModal({ ...alertModal, show: false })}
+                                           aria-label="Close"
+                                       />
+           
+                                       {/* Colored Top Border Strip */}
+                                       <div 
+                                           style={{ 
+                                               height: '6px', 
+                                               backgroundColor: alertModal.type === 'success' ? '#198754' : '#dc3545' 
+                                           }} 
+                                       />
+           
+                                       <div className="p-4 pt-5 text-center">
+                                           <div className="d-flex justify-content-center mb-3">
+                                               {alertModal.type === 'success' ? (
+                                                   <div className="bg-success bg-opacity-10 text-success rounded-circle p-3 d-inline-flex">
+                                                       <CheckCircle2 size={42} strokeWidth={2.5} />
+                                                   </div>
+                                               ) : (
+                                                   <div className="bg-danger bg-opacity-10 text-danger rounded-circle p-3 d-inline-flex">
+                                                       <AlertCircle size={42} strokeWidth={2.5} />
+                                                   </div>
+                                               )}
+                                           </div>
+           
+                                           <h4 className="fw-bold mb-2">
+                                               {alertModal.type === 'success' ? 'Success' : 'Something went wrong'}
+                                           </h4>
+           
+                                           <p className="text-secondary mb-0">
+                                               {alertModal.message}
+                                           </p>
+                                           <button className="btn btn-success mt-2 px-3" aria-label="close" onClick={() => setAlertModal({ ...alertModal, show: false })}>Ok</button>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       )}
         </div>
     );
 }

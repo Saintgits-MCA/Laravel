@@ -1376,3 +1376,103 @@ body.dark .form-select {
         font-size: 22px;
     }
 }
+/* ============================================================
+   DASHBOARD LAYOUT FIXES (Bootstrap + Custom CSS Harmony)
+============================================================ */
+
+/* 1. Fix the main container padding */
+.page-content .container-fluid {
+    width: 100%;
+    max-width: 1450px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin: 0 auto;
+}
+
+/* 2. Ensure the custom .card padding doesn't break Bootstrap grid */
+.card .card-body {
+    padding: 1.25rem !important; /* Restores Bootstrap inner padding */
+}
+
+/* 3. Force the Dashboard StatCard layout to behave like a grid */
+.card .d-flex.justify-content-between {
+    height: 100%;
+}
+
+/* 4. Fix the Chart container so it doesn't overflow */
+.chart-container {
+    width: 100%;
+    height: 300px;
+    min-height: 300px;
+    position: relative;
+}
+
+/* 5. Clean up the stat icon backgrounds to match your design screenshot */
+.bg-primary.bg-opacity-10 { background-color: rgba(99, 91, 219, 0.1) !important; }
+.bg-info.bg-opacity-10    { background-color: rgba(13, 202, 240, 0.1) !important; }
+.bg-success.bg-opacity-10 { background-color: rgba(25, 135, 84, 0.1) !important; }
+.bg-warning.bg-opacity-10 { background-color: rgba(255, 193, 7, 0.1) !important; }
+
+/* 6. Restore table styling inside the Bootstrap card */
+.card .table {
+    margin-bottom: 0;
+}
+.card .table-responsive {
+    border-radius: 0 0 var(--sf-radius) var(--sf-radius);
+}
+.card .table thead th {
+    background-color: #f8f9fc;
+    padding: 0.85rem 1rem;
+}
+
+/* 7. Mobile fixes for the dashboard */
+@media (max-width: 768px) {
+    .page-content .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+/* ============================================================
+   FIX CARD ZOOM/BREAKPOINT OVERFLOW
+============================================================ */
+
+/* 1. Override the custom card padding so Bootstrap handles it */
+.card {
+    padding: 0 !important; /* Let .card-body handle the inner spacing */
+    overflow: hidden;      /* Prevent content from spilling out */
+}
+
+/* 2. Fix the Stat Card height and layout */
+.card-body {
+    padding: 1.25rem !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+/* 3. Fix the chart container to prevent it from collapsing when zoomed */
+.chart-container {
+    width: 100%;
+    height: 320px;
+    min-height: 320px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 4. Force grid columns to stretch properly */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -0.75rem;
+    margin-left: -0.75rem;
+}
+
+/* 5. Responsive text sizing for zoom */
+@media (max-width: 1400px) {
+    /* Allow cards to wrap to 2 per row sooner if zoomed in */
+    .col-xl-3 {
+        flex: 0 0 auto;
+        width: 50%;
+    }
+}
