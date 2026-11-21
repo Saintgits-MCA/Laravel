@@ -10,12 +10,6 @@ use App\Http\Controllers\Api\AuthController;
 
 
 
-Route::apiResource('categories', CategoryController::class);
-
-Route::apiResource('products', ProductController::class);
-
-Route::apiResource('/users', UserController::class);
-
 Route::post('/login', [AuthController::class, 'login']);
 
 // Protect all these routes so only logged-in users can access them
@@ -27,4 +21,11 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 });
 Route::post('/logout', [AuthController::class, 'logout']);
+
+
+Route::apiResource('categories', CategoryController::class);
+
+Route::apiResource('products', ProductController::class);
+
+Route::apiResource('/users', UserController::class);
 });

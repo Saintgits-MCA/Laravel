@@ -37,6 +37,7 @@ export default function Categories() {
 
     // Load ONE page of categories from the server
     const loadCategories = async (pageToLoad = page) => {
+        
         const myId = ++requestIdRef.current;
         setLoading(true);
 
@@ -45,11 +46,17 @@ export default function Categories() {
                 params: { page: pageToLoad, per_page: PER_PAGE, search },
             });
 
+
             if (myId !== requestIdRef.current) return;
 
             const payload = response.data;
             const rows = Array.isArray(payload) ? payload : payload?.data || [];
             const last = payload?.last_page ?? 1;
+            console.log("Pagination response:", payload);
+console.log("Current page:", payload.current_page);
+console.log("Per page:", payload.per_page);
+console.log("Total:", payload.total);
+console.log("Last page:", payload.last_page);
 
             // Requested page no longer exists (e.g. last item deleted) -> go back
             if (rows.length === 0 && pageToLoad > 1 && pageToLoad > last) {
@@ -217,8 +224,8 @@ export default function Categories() {
         return pages;
     };
 
-    const showingFrom = total > 0 ? (page - 1) * PER_PAGE + 1 : 0;
-    const showingTo = Math.min(page * PER_PAGE, total);
+    const showingFrom = responseFrom ?? (total > 0 ? (page - 1) * PER_PAGE + 1 : 0);
+    const showingTo = responseTo ?? Math.min(page * PER_PAGE, total);
 
     return (
         <div className="container-fluid py-3 py-md-4">

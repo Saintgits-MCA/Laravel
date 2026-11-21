@@ -21,7 +21,7 @@ const emptyForm = {
     image: null,
 };
 
-const PER_PAGE = 10;
+const PER_PAGE = 5;
 
 export default function Products() {
     const [products, setProducts] = useState([]);
@@ -71,7 +71,7 @@ export default function Products() {
 
     const loadCategories = async () => {
         try {
-            const response = await api.get('/categories');
+            const response = await api.get("/categories", {params: { all: true },});
             const rows = Array.isArray(response.data) ? response.data : response.data?.data || [];
             setCategories(rows);
         } catch (err) {

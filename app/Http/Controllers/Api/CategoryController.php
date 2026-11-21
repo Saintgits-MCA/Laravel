@@ -9,8 +9,11 @@ use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->boolean('all')) {
+        return response()->json(Category::withCount('Products')->orderBy('name')->get());
+    }
         return response()->json(
             Category::withCount('Products')->orderBy('name')->paginate(5)
         );

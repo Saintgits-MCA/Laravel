@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -10,32 +11,39 @@ import {
     LogOut,
     ChevronLeft,
     User as UserIcon,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react';
 import api from '../services/api';
 
 const mainLinks = [
-    { name: 'Dashboard',  path: '/',           icon: LayoutDashboard },
-    { name: 'Products',   path: '/products',   icon: Package },
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Products', path: '/products', icon: Package },
     { name: 'Categories', path: '/categories', icon: Tags },
 ];
 
 const systemLinks = [
-    { name: 'User Management', path: '/users',    icon: Users },
-    { name: 'Settings',        path: '/settings', icon: Settings },
+    { name: 'User Management', path: '/users', icon: Users },
+    { name: 'Settings', path: '/settings', icon: Settings },
 ];
 
 export default function Sidebar({ open, onClose }) {
+    const [collapsed, setCollapsed] = useState(false);
+
     let user = { name: 'User', email: 'user@example.com' };
+
     try {
         const storedUser = localStorage.getItem('user');
         if (storedUser) user = JSON.parse(storedUser);
-    } catch (e) {}
+    } catch (e) {
+        console.error('Unable to read user:', e);
+    }
 
     const handleLogout = async () => {
         try {
             await api.post('/logout');
         } catch (error) {
-            console.error("Logout error:", error);
+            console.error('Logout error:', error);
         } finally {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user');
@@ -49,99 +57,130 @@ export default function Sidebar({ open, onClose }) {
             to={path}
             end={path === '/'}
             onClick={onClose}
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            title={collapsed ? name : undefined}
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'active' : ''}`
+            }
         >
-            <span className="sidebar-link-icon"><Icon size={18} /></span>
-            <span className="sidebar-link-text">{name}</span>
+            <span className="sidebar-link-icon">
+                <Icon size={19} />
+            </span>
+
+            <span className="sidebar-link-text">
+                {name}
+            </span>
         </NavLink>
     );
 
     return (
         <>
-            <div className={`sidebar-overlay ${open ? 'show' : ''}`} onClick={onClose} aria-hidden="true" />
+            {/* Mobile overlay */}
+            <div
+                className={`sidebar-overlay ${open ? 'show' : ''}`}
+                onClick={onClose}
+                aria-hidden="true"
+            />
 
-            {/* 
-              🚀 FIX: Added d-flex flex-column and height: 100vh 
-              to make sure the bottom items are pushed to the very bottom.
-            */}
-            <aside 
-                className={`sidebar d-flex flex-column ${open ? 'sidebar-open' : ''}`}
-                style={{ height: '100vh', paddingBottom: '20px' }}
+            <aside
+                className={`sidebar d-flex flex-column
+                    ${open ? 'sidebar-open' : ''}
+                    ${collapsed ? 'sidebar-collapsed' : ''}`}
             >
-                
-                {/* BRAND HEADER */}
-                <div className="sidebar-header pb-3 border-bottom mb-3 flex-shrink-0">
-                    <div className="sidebar-brand d-flex align-items-center gap-3">
-                        <div className="brand-icon rounded-3 d-flex align-items-center justify-content-center" style={{ background: '#635bdb', color: 'white', width: '42px', height: '42px' }}>
+                {/* HEADER */}
+                <div className="sidebar-header flex-shrink-0">
+
+                    <div className="sidebar-brand">
+                        <div className="brand-icon">
                             <Boxes size={22} />
                         </div>
-                        <div className="brand-text d-flex flex-column">
-                            <span className="brand-name fw-bold" style={{ fontSize: '16px', color: '#1e293b' }}>StockFlow</span>
-                            <span className="brand-sub text-muted" style={{ fontSize: '12px' }}>Inventory Manager</span>
+
+                        <div className="brand-text">
+                            <span className="brand-name">StockFlow</span>
+                            <span className="brand-sub">
+                                Inventory Manager
+                            </span>
                         </div>
                     </div>
-                    <button type="button" className="sidebar-close d-lg-none border-0 bg-transparent ms-auto" onClick={onClose}>
+
+                    {/* Desktop collapse button */}
+                    <button
+                        type="button"
+                        className="sidebar-toggle d-none ms-3 d-lg-flex"
+                        onClick={() => setCollapsed(!collapsed)}
+                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    >
+                        {collapsed
+                            ? <PanelLeftOpen size={19} />
+                            : <PanelLeftClose size={19} />
+                        }
+                    </button>
+
+                    {/* Mobile close button */}
+                    <button
+                        type="button"
+                        className="sidebar-close d-lg-none"
+                        onClick={onClose}
+                        aria-label="Close sidebar"
+                    >
                         <ChevronLeft size={20} />
                     </button>
                 </div>
 
-                {/* SCROLLABLE NAV SECTION */}
-                <div className="flex-grow-1 overflow-auto pe-1">
-                    <div className="sidebar-section-label mb-2">Workspace</div>
-                    <nav className="sidebar-nav mb-4 d-flex flex-column gap-1">
+                {/* NAVIGATION */}
+                <div className="sidebar-navigation flex-grow-1">
+
+                    <div className="sidebar-section-label">
+                        Workspace
+                    </div>
+
+                    <nav className="sidebar-nav mb-4">
                         {mainLinks.map(renderLink)}
                     </nav>
 
-                    <div className="sidebar-section-label mb-2">System</div>
-                    <nav className="sidebar-nav d-flex flex-column gap-1">
+                    <div className="sidebar-section-label">
+                        System
+                    </div>
+
+                    <nav className="sidebar-nav">
                         {systemLinks.map(renderLink)}
                     </nav>
+
                 </div>
 
-                {/* BOTTOM SECTION: USER PROFILE & FOOTER */}
-                <div className="flex-shrink-0 mt-3 pt-3 border-top">
-                    
-                    {/* User Info */}
-                    <div className="d-flex align-items-center gap-3 mb-3 px-1">
-                        <div 
-                            className="rounded-circle d-flex align-items-center justify-content-center"
-                            style={{ width: '38px', height: '38px', backgroundColor: '#f4f5fa', color: '#635bdb' }}
-                        >
+                {/* USER PROFILE AND FOOTER */}
+                <div className="sidebar-bottom flex-shrink-0">
+
+                    <div className="sidebar-user">
+                        <div className="sidebar-user-icon">
                             <UserIcon size={20} />
                         </div>
-                        <div className="overflow-hidden" style={{ flex: 1 }}>
-                            <div className="fw-bold text-truncate" style={{ fontSize: '14px', color: '#1e293b' }}>
+
+                        <div className="sidebar-user-details">
+                            <div className="sidebar-user-name">
                                 {user.name}
                             </div>
-                            <div className="text-muted text-truncate" style={{ fontSize: '12px' }}>
+
+                            <div className="sidebar-user-email">
                                 {user.email}
                             </div>
                         </div>
                     </div>
-                    
-                    {/* Logout Button */}
-                    <button 
+
+                    <button
                         onClick={handleLogout}
-                        className="btn w-100 d-flex align-items-center justify-content-center gap-2 fw-medium"
-                        style={{ 
-                            color: '#dc2626', 
-                            backgroundColor: '#fef2f2', 
-                            border: '1px solid #fecaca', 
-                            padding: '8px 12px',
-                            borderRadius: '8px'
-                        }}
+                        className="sidebar-logout"
+                        title={collapsed ? 'Logout' : undefined}
                     >
-                        <LogOut size={16} /> Logout
+                        <LogOut size={17} />
+                        <span>Logout</span>
                     </button>
 
-                    {/* Footer text */}
-                    <div className="mt-3 text-center">
-                        <p className="text-muted mb-0" style={{ fontSize: '11px' }}>
-                            StockFlow v1.0 &middot; Laravel + React
-                        </p>
+                    <div className="sidebar-footer-text">
+                        StockFlow v1.0 · Laravel + React
                     </div>
-                </div>
 
+                </div>
             </aside>
         </>
     );
