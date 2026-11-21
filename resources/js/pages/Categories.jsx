@@ -26,7 +26,8 @@ export default function Categories() {
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0); // matches for current search
     const [totalAll, setTotalAll] = useState(0); // all categories, ignoring search
-
+    const [responseFrom, setResponseFrom] = useState(null);
+    const [responseTo, setResponseTo] = useState(null);
     const [alertModal, setAlertModal] = useState({
         show: false,
         type: "success",
@@ -68,6 +69,8 @@ console.log("Last page:", payload.last_page);
             setLastPage(last);
             setTotal(payload?.total ?? rows.length);
             setTotalAll(payload?.total_all ?? payload?.total ?? rows.length);
+            setResponseFrom(payload?.from ?? null);
+            setResponseTo(payload?.to ?? null);
         } catch (err) {
             if (myId !== requestIdRef.current) return;
             setAlertModal({
