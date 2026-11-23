@@ -87,7 +87,7 @@ export default function Sidebar({ open, onClose }) {
                     ${collapsed ? 'sidebar-collapsed' : ''}`}
             >
                 {/* HEADER */}
-                <div className="sidebar-header flex-shrink-0">
+                <div className="sidebar-header shrink-0">
 
                     <div className="sidebar-brand">
                         <div className="brand-icon">
@@ -96,9 +96,9 @@ export default function Sidebar({ open, onClose }) {
 
                         <div className="brand-text">
                             <span className="brand-name">StockFlow</span>
-                            <span className="brand-sub">
+                            <small className="brand-sub text-sm">
                                 Inventory Manager
-                            </span>
+                            </small>
                         </div>
                     </div>
 
@@ -128,7 +128,7 @@ export default function Sidebar({ open, onClose }) {
                 </div>
 
                 {/* NAVIGATION */}
-                <div className="sidebar-navigation flex-grow-1">
+                <div className="sidebar-navigation grow">
 
                     <div className="sidebar-section-label">
                         Workspace
@@ -149,7 +149,7 @@ export default function Sidebar({ open, onClose }) {
                 </div>
 
                 {/* USER PROFILE AND FOOTER */}
-                <div className="sidebar-bottom flex-shrink-0">
+                <div className="sidebar-bottom shrink-0">
 
                     <div className="sidebar-user">
                         <div className="sidebar-user-icon">

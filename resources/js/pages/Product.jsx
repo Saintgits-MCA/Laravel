@@ -320,7 +320,7 @@ export default function Products() {
                                                 {product.image ? (
                                                     <button
                                                         type="button"
-                                                        className="btn p-0 border-0 position-relative flex-shrink-0"
+                                                        className="btn p-0 border-0 position-relative shrink-0"
                                                         style={{ width: '48px', height: '48px', cursor: 'zoom-in' }}
                                                         title="Click to preview"
                                                         aria-label={`Preview image of ${product.name}`}
@@ -441,18 +441,18 @@ export default function Products() {
                                                     <label className="form-label fw-semibold small mb-1">Product Image</label>
                                                     <label
                                                         htmlFor="product-image"
-                                                        className="border border-2 rounded-3 p-2 d-flex align-items-center gap-3 w-100 bg-light"
+                                                        className="border rounded-3 p-2 d-flex align-items-center gap-3 w-100 bg-light"
                                                         style={{ cursor: 'pointer', borderStyle: 'dashed' }}
                                                     >
                                                         {formImage ? (
                                                             <img
                                                                 src={formImage}
                                                                 alt="Product"
-                                                                className="flex-shrink-0"
+                                                                className="shrink-0"
                                                                 style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px' }}
                                                             />
                                                         ) : (
-                                                            <div className="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: '64px', height: '64px' }}>
+                                                            <div className="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center shrink-0" style={{ width: '64px', height: '64px' }}>
                                                                 <ImagePlus size={24} />
                                                             </div>
                                                         )}
